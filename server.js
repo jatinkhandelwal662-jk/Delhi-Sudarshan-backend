@@ -1,4 +1,4 @@
-import "dotenv/config"; // 🟢 LOAD HIDDEN KEYS
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import twilio from "twilio";
@@ -9,9 +9,9 @@ import fs from "fs";
 const app = express();
 
 // CONFIGURATION
-const PUBLIC_URL = "https://husbandless-kerry-unvitrescent.ngrok-free.dev"; 
+const PUBLIC_URL = "https://delhi-sudarshan-backend.onrender.com"; 
 
-// --- TWILIO CREDENTIALS (NOW SECURE) ---
+// --- TWILIO CREDENTIALS---
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_PHONE = process.env.TWILIO_PHONE_NUMBER;
@@ -21,9 +21,9 @@ const ADMIN_PHONE = process.env.ADMIN_PHONE_NUMBER;
 const API_KEY_SID = process.env.TWILIO_API_KEY_SID;
 const API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
 
-// 🔴 SAFETY CHECK: Ensure keys exist before starting
+// SAFETY CHECK: Ensure keys exist before starting
 if (!ACCOUNT_SID || !API_KEY_SID) {
-    console.error("❌ CRITICAL ERROR: .env file is missing or empty!");
+    console.error("CRITICAL ERROR: .env file is missing or empty!");
     console.error("Please create a .env file with your Twilio keys.");
     process.exit(1);
 }
@@ -69,7 +69,7 @@ app.get("/api/token", (req, res) => {
 app.post("/api/reject-complaint", async (req, res) => {
     const { id, reason } = req.body;
     
-    console.log(`❌ Rejecting ${id}. Calling Virtual Citizen...`);
+    console.log(`Rejecting ${id}. Calling Virtual Citizen...`);
 
     try {
         const call = await client.calls.create({
@@ -86,7 +86,7 @@ app.post("/api/reject-complaint", async (req, res) => {
             to: 'client:citizen', 
             from: TWILIO_PHONE
         });
-        console.log("📞 WebRTC Call Initiated SID:", call.sid);
+        console.log("WebRTC Call Initiated SID:", call.sid);
         
         const item = complaints.find(c => c.id === id);
         if (item) item.status = "Rejected";
@@ -103,7 +103,7 @@ app.post("/api/reject-complaint", async (req, res) => {
 app.post("/api/new-complaint", async (req, res) => {
     const data = req.body;
     complaints.unshift(data); 
-    console.log("📝 Registered:", data.id);
+    console.log("Registered:", data.id);
 
     // SMS LOGIC RESTORED
     let recipient = data.phone;
@@ -122,7 +122,7 @@ app.post("/api/new-complaint", async (req, res) => {
             from: TWILIO_PHONE,
             to: recipient 
         });
-        console.log(`📨 SMS Sent to ${recipient}`);
+        console.log(`SMS Sent to ${recipient}`);
         console.log(`${PUBLIC_URL}/upload.html?id=${data.id}`);
     } catch (err) {
         console.error("SMS Failed (Expected on Trial):", err.message);

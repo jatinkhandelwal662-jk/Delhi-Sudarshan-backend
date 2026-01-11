@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Evidence Cam | Delhi Sudarshan</title>
+    <link rel="shortcut icon" href="camera.webp" type="image/webp">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; text-align: center; color: white; margin: 0; padding: 20px; }
+        .container { max-width: 500px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 20px; border: 1px solid #334155; }
+        
+        h2 { color: #38bdf8; margin-top: 0; }
+        p { color: #94a3b8; font-size: 0.9rem; }
+
+        /* CAMERA VIEWPORT */
+        .camera-box {
+            width: 100%; height: 300px; background: black; border-radius: 15px; overflow: hidden; position: relative;
+            border: 2px solid #334155; margin-bottom: 20px;
+        }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .captured-img { width: 100%; height: 100%; object-fit: cover; display: none; }
+
+        /* BUTTONS */
+        .btn-group { display: flex; gap: 10px; justify-content: center; }
+        button {
+            padding: 12px 24px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.2s;
+        }
+        .btn-capture { background: #ef4444; color: white; width: 60px; height: 60px; border-radius: 50%; padding: 0; border: 4px solid white; }
+        .btn-capture:hover { transform: scale(1.1); }
+
+        .btn-retake { background: #64748b; color: white; display: none; }
+        .btn-submit { background: #22c55e; color: white; display: none; flex: 1; }
+
+        /* HIDDEN CANVAS FOR PROCESSING */
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📸 Live Evidence Cam</h2>
+        <p>Verifying for <b id="cid">Complaint #...</b></p>
+
+        <div class="camera-box">
+            <video id="video" autoplay playsinline></video>
+            <img id="preview" class="captured-img">
+        </div>
+
+        <canvas id="canvas"></canvas>
+
+        <div class="btn-group">
+            <button id="captureBtn" class="btn-capture" title="Take Photo"></button>
+            <button id="retakeBtn" class="btn-retake">Retake</button>
+            <button id="submitBtn" class="btn-submit">✅ Upload Evidence</button>
+        </div>
+        
+        <p id="status" style="margin-top:20px; font-weight:bold;"></p>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const preview = document.getElementById('preview');
+        const captureBtn = document.getElementById('captureBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        let currentBlob = null; // Store the image data
+
+        // 1. Get Complaint ID from URL
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get("id");
+        document.getElementById("cid").innerText = id ? id : "Unknown";
+
+        // 2. START CAMERA (Auto-run on load)
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" }, // Prefer back camera on phones, webcam on laptop
+                    audio: false 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                document.getElementById('status').innerText = "❌ Camera Error: " + err.message;
+            }
+        }
+        startCamera();
+
+        // 3. CAPTURE PHOTO
+        captureBtn.addEventListener('click', () => {
+            // Draw video frame to canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert to Blob (Image file)
+            canvas.toBlob((blob) => {
+                currentBlob = blob;
+                preview.src = URL.createObjectURL(blob);
+                
+                // UI Changes
+                video.style.display = 'none';
+                preview.style.display = 'block';
+                captureBtn.style.display = 'none';
+                retakeBtn.style.display = 'block';
+                submitBtn.style.display = 'block';
+            }, 'image/jpeg', 0.95);
+        });
+
+        // 4. RETAKE PHOTO
+        retakeBtn.addEventListener('click', () => {
+            currentBlob = null;
+            preview.style.display = 'none';
+            video.style.display = 'block';
+            captureBtn.style.display = 'block';
+            retakeBtn.style.display = 'none';
+            submitBtn.style.display = 'none';
+        });
+
+        // 5. SUBMIT TO BACKEND
+        submitBtn.addEventListener('click', async () => {
+            if (!currentBlob || !id) return;
+
+            const formData = new FormData();
+            // Important: 'photo' matches backend logic, 'capture.jpg' gives it a name
+            formData.append("photo", currentBlob, "capture.jpg"); 
+            formData.append("id", id);
+
+            document.getElementById("status").innerText = "Uploading...";
+            submitBtn.disabled = true;
+
+            try {
+                const res = await fetch("/api/upload-photo", { method: "POST", body: formData });
+                const result = await res.json();
+
+                if (result.success) {
+                    document.body.innerHTML = `
+                        <div class="container" style="padding:40px;">
+                            <h1 style="font-size:3rem;">✅</h1>
+                            <h2>Evidence Uploaded!</h2>
+                            <p>You can close this window now.</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById("status").innerText = "❌ Upload Failed";
+                    submitBtn.disabled = false;
+                }
+            } catch (err) {
+                console.error(err);
+                document.getElementById("status").innerText = "❌ Server Error";
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

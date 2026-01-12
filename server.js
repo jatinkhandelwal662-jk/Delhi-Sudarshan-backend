@@ -138,6 +138,6 @@ app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
     res.json({ success: true, url: fullImageUrl });
 });
 
-app.get("/api/complaints", (req, res) => res.json(complaints));
+app.get("/api/new-complaint", (req, res) => res.json(complaints));
 
 app.listen(5000, () => console.log("Backend running on http://localhost:5000"));

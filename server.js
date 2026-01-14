@@ -68,9 +68,7 @@ app.get("/api/token", (req, res) => {
 // API 2: REJECT CALL (The Hack)
 app.post("/api/reject-complaint", async (req, res) => {
     const { id, reason } = req.body;
-    
-    console.log(`Rejecting ${id}. Calling Virtual Citizen...`);
-
+    console.log(`Rejecting ${id}. Calling Virtual Citizen...`); 
     try {
         const call = await client.calls.create({
             twiml: `
@@ -99,13 +97,13 @@ app.post("/api/reject-complaint", async (req, res) => {
     }
 });
 
-// 📨 API 3: SMS (Restored)
+// 📨 API 3: SMS
 app.post("/api/new-complaint", async (req, res) => {
     const data = req.body;
     complaints.unshift(data); 
     console.log("Registered:", data.id);
 
-    // SMS LOGIC RESTORED
+    // SMS LOGIC
     let recipient = data.phone;
     if (recipient) {
         recipient = recipient.replace(/\s+/g, '').replace(/-/g, '');

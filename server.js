@@ -34,6 +34,7 @@ const VoiceGrant = AccessToken.VoiceGrant;
 
 // Test Data
 let complaints = [];
+let auditResults = {}; // Stores
 
 app.use(cors({ origin: "*", allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"] }));
 app.use(express.json());
@@ -138,9 +139,6 @@ app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
 // API 4: SURPRISE CLUSTER AUDIT
-let auditResults = {}; // Stores
-
-// --- 2. UPDATE THE AUDIT CALL API ---
 app.post("/api/audit-cluster", async (req, res) => {
     const { loc, dept, count } = req.body;
     console.log(`Initiating Surprise Audit for ${dept} in ${loc}`);

@@ -176,14 +176,15 @@ app.post("/api/audit-ivr", (req, res) => {
         timeout: 10
     });
 
-    gather.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, 
-        "Namaste. This is a surprise audit call from Delhi Sudarshan. " +
-        "Can you confirm if the work is actually done? " +
-        "Press 1 for Yes. Press 2 for No."
+    gather.say({ voice: 'Polly.Aditi', language: 'hi-IN' },
+                 "नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है।" +
+                 "${dept} विभाग का दावा है कि उन्होंने आपकी समस्या का समाधान कर दिया है।" +
+                 "${loc} क्षेत्र के निवासी होने के नाते, क्या आप पुष्टि कर सकते हैं कि काम वास्तव में पूरा हो गया है?" +
+                 "हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।"
     );
 
     // If no input
-    twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "We did not receive input. Goodbye.");
+    twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "हमें कोई प्रतिक्रिया प्राप्त नहीं हुई।");
     
     res.type('text/xml');
     res.send(twiml.toString());
@@ -194,16 +195,16 @@ app.post("/api/audit-result", (req, res) => {
     const digits = req.body.Digits;
     const callSid = req.body.CallSid;
     
-    console.log(`📞 Call ${callSid} pressed: ${digits}`);
+    console.log(`Call ${callSid} pressed: ${digits}`);
     
     // Store the result!
     auditResults[callSid] = digits; 
 
     const twiml = new twilio.twiml.VoiceResponse();
     if (digits === '1') {
-        twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "Thank you for confirming. Have a nice day.");
+        twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "पुष्टि करने के लिए धन्यवाद। आपका दिन शुभ हो।");
     } else {
-        twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "Thank you. We will investigate this.");
+        twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "धन्यवाद। हम इसकी जांच करेंगे।");
     }
     
     res.type('text/xml');

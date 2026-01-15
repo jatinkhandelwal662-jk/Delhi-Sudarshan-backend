@@ -137,5 +137,35 @@ app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
 });
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
+// 🕵️‍♂️ API 4: SURPRISE CLUSTER AUDIT (The "Random Sample" Call)
+app.post("/api/audit-cluster", async (req, res) => {
+    const { loc, dept, count } = req.body;
+    
+    console.log(`🕵️‍♂️ Initiating Surprise Audit for ${dept} in ${loc}. Target: Random Citizen.`);
+
+    try {
+        const call = await client.calls.create({
+            twiml: `
+                <Response>
+                    <Say voice="Polly.Aditi" language="hi-IN">
+                        नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है।
+                        Hello. This is a surprise audit call from Delhi Sudarshan.
+                        The ${dept} department claims to have resolved ${count} issues in ${loc}.
+                        As a resident of this area, can you confirm if the work is actually done?
+                        Press 1 for Yes. Press 2 for No.
+                    </Say>
+                </Response>
+            `,
+            to: 'client:citizen', // Rings the browser
+            from: TWILIO_PHONE
+        });
+        console.log("Audit Call Initiated SID:", call.sid);
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error("Twilio Error:", error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 app.listen(5000, () => console.log("Backend running on http://localhost:5000"));

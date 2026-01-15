@@ -38,6 +38,7 @@ let auditResults = {}; // Stores
 
 app.use(cors({ origin: "*", allowedHeaders: ["Content-Type", "ngrok-skip-browser-warning"] }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public")); 
 app.use("/uploads", express.static("uploads"));
 

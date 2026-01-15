@@ -137,38 +137,84 @@ app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
 });
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
-// API 4: SURPRISE CLUSTER AUDIT (Fixed with Keypad Wait)
+// API 4: SURPRISE CLUSTER AUDIT
+let auditResults = {}; // Stores
+
+// --- 2. UPDATE THE AUDIT CALL API ---
 app.post("/api/audit-cluster", async (req, res) => {
     const { loc, dept, count } = req.body;
-    
-    console.log(`Initiating Surprise Audit for ${dept} in ${loc}. Target: Random Citizen.`);
+    console.log(`Initiating Surprise Audit for ${dept} in ${loc}`);
 
     try {
         const call = await client.calls.create({
-            twiml: `
-                <Response>
-                    <Gather numDigits="1" timeout="10">
-                        <Say voice="Polly.Aditi" language="hi-IN">
-                            नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है।
-                            ${dept} विभाग का दावा है कि उन्होंने आपकी समस्या का समाधान कर दिया है। 
-                            ${loc} क्षेत्र के निवासी होने के नाते, क्या आप पुष्टि कर सकते हैं कि काम वास्तव में पूरा हो गया है?
-                            हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।
-                        </Say>
-                    </Gather>
-                    <Say voice="Polly.Aditi" language="hi-IN">
-                        अपना समय देने के लिए धन्यवाद।
-                    </Say>
-                </Response>
-            `,
+            // URL points to a new endpoint that handles the IVR logic
+            url: `${PUBLIC_URL}/api/audit-ivr`, 
             to: 'client:citizen', 
             from: TWILIO_PHONE
         });
-        console.log("Audit Call Initiated SID:", call.sid);
-        res.json({ success: true });
+        
+        // Initialize status as 'pending'
+        auditResults[call.sid] = 'pending';
+        
+        console.log("Audit Call SID:", call.sid);
+        res.json({ success: true, callSid: call.sid }); // Send SID back to frontend
 
     } catch (error) {
         console.error("Twilio Error:", error.message);
         res.status(500).json({ success: false, error: error.message });
     }
+});
+
+// --- 3. NEW: IVR HANDLING ENDPOINT (Twilio talks to this) ---
+app.post("/api/audit-ivr", (req, res) => {
+    const twiml = new twilio.twiml.VoiceResponse();
+    
+    // Gather Input
+    const gather = twiml.gather({
+        numDigits: 1,
+        action: '/api/audit-result', // Send digits here
+        method: 'POST',
+        timeout: 10
+    });
+
+    gather.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, 
+        "Namaste. This is a surprise audit call from Delhi Sudarshan. " +
+        "Can you confirm if the work is actually done? " +
+        "Press 1 for Yes. Press 2 for No."
+    );
+
+    // If no input
+    twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "We did not receive input. Goodbye.");
+    
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
+// --- 4. NEW: HANDLE KEYPRESS RESULT ---
+app.post("/api/audit-result", (req, res) => {
+    const digits = req.body.Digits;
+    const callSid = req.body.CallSid;
+    
+    console.log(`📞 Call ${callSid} pressed: ${digits}`);
+    
+    // Store the result!
+    auditResults[callSid] = digits; 
+
+    const twiml = new twilio.twiml.VoiceResponse();
+    if (digits === '1') {
+        twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "Thank you for confirming. Have a nice day.");
+    } else {
+        twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "Thank you. We will investigate this.");
+    }
+    
+    res.type('text/xml');
+    res.send(twiml.toString());
+});
+
+// --- 5. NEW: FRONTEND CHECK API ---
+app.get("/api/check-audit-status/:sid", (req, res) => {
+    const sid = req.params.sid;
+    const status = auditResults[sid] || 'pending';
+    res.json({ status: status });
 });
 app.listen(5000, () => console.log("Backend running on http://localhost:5000"));

@@ -139,24 +139,23 @@ app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
 });
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
+
 // API 4: SURPRISE CLUSTER AUDIT
+// A. Start the Audit Call
 app.post("/api/audit-cluster", async (req, res) => {
     const { loc, dept, count } = req.body;
-    console.log(`Initiating Surprise Audit for ${dept} in ${loc}`);
+    console.log(`Starting Audit: ${dept} in ${loc}`);
 
     try {
         const call = await client.calls.create({
-            // URL points to a new endpoint that handles the IVR logic
-            url: `${PUBLIC_URL}/api/audit-ivr`, 
+            url: `${PUBLIC_URL}/api/audit-ivr?dept=${encodeURIComponent(dept)}&loc=${encodeURIComponent(loc)}`, 
             to: 'client:citizen', 
             from: TWILIO_PHONE
         });
         
-        // Initialize status as 'pending'
-        auditResults[call.sid] = 'pending';
-        
-        console.log("Audit Call SID:", call.sid);
-        res.json({ success: true, callSid: call.sid }); // Send SID back to frontend
+        auditResults[call.sid] = 'pending'; 
+        console.log("Call SID:", call.sid);
+        res.json({ success: true, callSid: call.sid });
 
     } catch (error) {
         console.error("Twilio Error:", error.message);
@@ -164,28 +163,24 @@ app.post("/api/audit-cluster", async (req, res) => {
     }
 });
 
-// --- 3. NEW: IVR HANDLING ENDPOINT (Twilio talks to this) ---
+// B. The IVR Logic
 app.post("/api/audit-ivr", (req, res) => {
+    // FIX: Get data from URL query
+    const { dept, loc } = req.query; 
     const twiml = new twilio.twiml.VoiceResponse();
-    
-    // Gather Input
     const gather = twiml.gather({
         numDigits: 1,
-        action: '/api/audit-result', // Send digits here
+        action: '/api/audit-result',
         method: 'POST',
         timeout: 10
     });
 
-    gather.say({ voice: 'Polly.Aditi', language: 'hi-IN' },
-                 "नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है।" +
-                 ${dept} + "विभाग का दावा है कि उन्होंने आपकी समस्या का समाधान कर दिया है।" +
-                 ${loc} + "क्षेत्र के निवासी होने के नाते, क्या आप पुष्टि कर सकते हैं कि काम वास्तव में पूरा हो गया है?" +
-                 "हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।"
+    // 
+    gather.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, 
+        `नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है। ${dept} विभाग का दावा है कि उन्होंने आपकी समस्या का समाधान कर दिया है। ${loc} क्षेत्र के निवासी होने के नाते, क्या आप पुष्टि कर सकते हैं कि काम वास्तव में पूरा हो गया है? हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।`
     );
 
-    // If no input
-    twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "हमें कोई प्रतिक्रिया प्राप्त नहीं हुई।");
-    
+    twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "हमें कोई इनपुट नहीं मिला। धन्यवाद।");
     res.type('text/xml');
     res.send(twiml.toString());
 });

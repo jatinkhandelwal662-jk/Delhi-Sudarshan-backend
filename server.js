@@ -137,26 +137,30 @@ app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
 });
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
-// 🕵️‍♂️ API 4: SURPRISE CLUSTER AUDIT (The "Random Sample" Call)
+// API 4: SURPRISE CLUSTER AUDIT (Fixed with Keypad Wait)
 app.post("/api/audit-cluster", async (req, res) => {
     const { loc, dept, count } = req.body;
     
-    console.log(`🕵️‍♂️ Initiating Surprise Audit for ${dept} in ${loc}. Target: Random Citizen.`);
+    console.log(`Initiating Surprise Audit for ${dept} in ${loc}. Target: Random Citizen.`);
 
     try {
         const call = await client.calls.create({
             twiml: `
                 <Response>
+                    <Gather numDigits="1" timeout="10">
+                        <Say voice="Polly.Aditi" language="hi-IN">
+                            नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है।
+                            ${dept} विभाग का दावा है कि उन्होंने आपकी समस्या का समाधान कर दिया है। 
+                            ${loc} क्षेत्र के निवासी होने के नाते, क्या आप पुष्टि कर सकते हैं कि काम वास्तव में पूरा हो गया है?
+                            हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।
+                        </Say>
+                    </Gather>
                     <Say voice="Polly.Aditi" language="hi-IN">
-                        नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है।
-                        Hello. This is a surprise audit call from Delhi Sudarshan.
-                        The ${dept} department claims to have resolved ${count} issues in ${loc}.
-                        As a resident of this area, can you confirm if the work is actually done?
-                        Press 1 for Yes. Press 2 for No.
+                        अपना समय देने के लिए धन्यवाद।
                     </Say>
                 </Response>
             `,
-            to: 'client:citizen', // Rings the browser
+            to: 'client:citizen', 
             from: TWILIO_PHONE
         });
         console.log("Audit Call Initiated SID:", call.sid);
@@ -167,5 +171,4 @@ app.post("/api/audit-cluster", async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
-
 app.listen(5000, () => console.log("Backend running on http://localhost:5000"));

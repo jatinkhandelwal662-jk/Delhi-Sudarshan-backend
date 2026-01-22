@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://via.placeholder.com/120?text=Logo" alt="Delhi Sudarshan Backend" width="120" height="120">
+  <img src="favicon2.jpg" alt="Delhi Sudarshan Backend" width="120" height="120">
 
   # DELHI SUDARSHAN | Backend Core
 

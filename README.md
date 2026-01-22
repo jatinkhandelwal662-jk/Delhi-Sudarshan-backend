@@ -45,7 +45,7 @@ Government data resides in legacy mainframes (MCD/PWD SQL Servers). Migrating pe
 
 ---
 
-## 🎮 Interactive Demo Components
+## Interactive Demo Components
 
 This repository hosts two critical simulation interfaces:
 

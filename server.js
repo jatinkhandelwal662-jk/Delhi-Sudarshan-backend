@@ -140,7 +140,7 @@ app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
 
-// API 4: SURPRISE CLUSTER AUDIT
+// API 4: CITIZEN ASSURANCE CALL
 // A. Start the Audit Call
 app.post("/api/audit-cluster", async (req, res) => {
     const { loc, dept, count } = req.body;
@@ -177,7 +177,7 @@ app.post("/api/audit-ivr", (req, res) => {
 
     // 
     gather.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, 
-        `नमस्ते। यह दिल्ली सुदर्शन से एक औचक निरीक्षण कॉल है। ${dept} विभाग का दावा है कि उन्होंने आपकी समस्या का समाधान कर दिया है। ${loc} क्षेत्र के निवासी होने के नाते, क्या आप पुष्टि कर सकते हैं कि काम वास्तव में पूरा हो गया है? हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।`
+        `नमस्ते। यह दिल्ली सुदर्शन से एक सेवा सत्यापन कॉल है। ${dept} विभाग का दावा है कि उन्होंने आपकी समस्या का समाधान कर दिया है। ${loc} क्षेत्र के निवासी होने के नाते, क्या आप इस कार्य से संतुष्ट हैं? हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।`
     );
 
     twiml.say({ voice: 'Polly.Aditi', language: 'hi-IN' }, "हमें कोई इनपुट नहीं मिला। धन्यवाद।");

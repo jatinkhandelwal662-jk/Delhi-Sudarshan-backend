@@ -22,6 +22,9 @@ const ADMIN_PHONE = process.env.ADMIN_PHONE_NUMBER;
 const API_KEY_SID = process.env.TWILIO_API_KEY_SID;
 const API_KEY_SECRET = process.env.TWILIO_API_KEY_SECRET;
 
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
 // SAFETY CHECK: Ensure keys exist before starting
 if (!ACCOUNT_SID || !API_KEY_SID) {
     console.error("CRITICAL ERROR: .env file is missing or empty!");

@@ -184,8 +184,8 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
         console.log(`🤖 AI Verdict: ${text}`);
 
         // 6. Handle AI Decision
-        if (text.includes("VALID")) {
-            // ✅ Accepted
+        // Check if it is EXACTLY "VALID" (ignores spaces)
+        if (text.trim() === "VALID") { {
             item.img = fullImageUrl; 
             item.status = "Pending"; 
             item.lat = req.body.lat; // Save GPS
@@ -193,9 +193,7 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
             
             res.json({ success: true, url: fullImageUrl, spam: false });
         } else {
-            // 🚫 Rejected (Spam)
-            console.log("❌ Blocked by AI: Invalid Image");
-            
+            console.log("Blocked by AI: Invalid Image");
             // Do NOT update the complaint status or image
             // We return 'spam: true' so frontend can show Red Alert
             res.json({ success: false, spam: true });

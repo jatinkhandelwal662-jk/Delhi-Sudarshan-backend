@@ -51,6 +51,16 @@ const upload = multer({ storage: multer.diskStorage({
     filename: (req, file, cb) => { cb(null, req.body.id + '-' + Date.now() + path.extname(file.originalname)); }
 })});
 
+// --- HELPER FUNCTION: Add this before your routes ---
+function fileToGenerativePart(path, mimeType) {
+  return {
+    inlineData: {
+      data: fs.readFileSync(path).toString("base64"),
+      mimeType
+    },
+  };
+}
+
 // API 1: GENERATE WEBRTC TOKEN
 app.get("/api/token", (req, res) => {
     const identity = "citizen"; 

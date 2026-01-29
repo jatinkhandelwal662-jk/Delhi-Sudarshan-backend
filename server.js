@@ -67,7 +67,7 @@ app.get("/api/token", (req, res) => {
     res.json({ token: token.toJwt(), identity: identity });
 });
 
-// API 2: REJECT CALL (The Hack)
+// API 2: REJECT CALL
 app.post("/api/reject-complaint", async (req, res) => {
     const { id, reason } = req.body;
     console.log(`Rejecting ${id}. Calling Virtual Citizen...`); 
@@ -130,11 +130,24 @@ app.post("/api/new-complaint", async (req, res) => {
     res.json({ success: true });
 });
 
-// Photo Upload
+// Photo Upload API
 app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
     const fullImageUrl = `${PUBLIC_URL}/uploads/${req.file.filename}`;
+    
+    // Find the complaint
     const item = complaints.find(c => c.id === req.body.id);
-    if(item) { item.img = fullImageUrl; item.status = "Pending"; }
+    
+    if(item) { 
+        item.img = fullImageUrl; 
+        item.status = "Pending"; 
+        
+        // SAVE GPS DATA
+        item.lat = req.body.lat;
+        item.long = req.body.long;
+        
+        console.log(`📸 Evidence received for ${item.id} at [${item.lat}, ${item.long}]`);
+    }
+    
     res.json({ success: true, url: fullImageUrl });
 });
 

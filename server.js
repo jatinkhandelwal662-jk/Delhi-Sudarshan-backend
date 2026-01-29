@@ -5,6 +5,7 @@ import twilio from "twilio";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const app = express();
 

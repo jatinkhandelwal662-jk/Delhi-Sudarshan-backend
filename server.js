@@ -131,25 +131,71 @@ app.post("/api/new-complaint", async (req, res) => {
 });
 
 // Photo Upload API
-app.post("/api/upload-photo", upload.single("photo"), (req, res) => {
+// ==========================================
+// 🛡️ API: PHOTO UPLOAD WITH AI VERIFICATION
+// ==========================================
+app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
+    // 1. Basic Validation
+    if (!req.file) return res.json({ success: false, error: "No file uploaded" });
+
+    const filePath = req.file.path;
     const fullImageUrl = `${PUBLIC_URL}/uploads/${req.file.filename}`;
     
-    // Find the complaint
+    // 2. Find the complaint
     const item = complaints.find(c => c.id === req.body.id);
-    
-    if(item) { 
-        item.img = fullImageUrl; 
-        item.status = "Pending"; 
-        
-        // SAVE GPS DATA
-        item.lat = req.body.lat;
-        item.long = req.body.long;
-        
-        console.log(`📸 Evidence received for ${item.id} at [${item.lat}, ${item.long}]`);
+    if(!item) return res.json({ success: false, error: "Complaint ID not found" });
+
+    try {
+        console.log(`🤖 AI Verifying Image for ${item.id}...`);
+
+        // 3. Setup AI Model
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // 4. The Verification Prompt
+        const prompt = `
+            Analyze this image for a government grievance portal.
+            Is this image related to civic issues like: Garbage, Potholes, Water leakage, Broken roads, Street lights, Sewer issues, or Construction debris?
+            
+            - If YES (it looks like a valid complaint): Respond with "VALID"
+            - If NO (it looks like a laptop, selfie, person face, computer screen, animal, or random object): Respond with "INVALID"
+        `;
+
+        const imagePart = fileToGenerativePart(filePath, req.file.mimetype);
+
+        // 5. Generate Result
+        const result = await model.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        const text = response.text().trim();
+
+        console.log(`🤖 AI Verdict: ${text}`);
+
+        // 6. Handle AI Decision
+        if (text.includes("VALID")) {
+            // ✅ Accepted
+            item.img = fullImageUrl; 
+            item.status = "Pending"; 
+            item.lat = req.body.lat; // Save GPS
+            item.long = req.body.long; // Save GPS
+            
+            res.json({ success: true, url: fullImageUrl, spam: false });
+        } else {
+            // 🚫 Rejected (Spam)
+            console.log("❌ Blocked by AI: Invalid Image");
+            
+            // Do NOT update the complaint status or image
+            // We return 'spam: true' so frontend can show Red Alert
+            res.json({ success: false, spam: true });
+        }
+
+    } catch (error) {
+        console.error("AI Error:", error);
+        // Fallback: If AI fails (server error), allow the upload to be safe
+        item.img = fullImageUrl;
+        item.status = "Pending";
+        res.json({ success: true, url: fullImageUrl, warning: "AI Check Skipped" });
     }
-    
-    res.json({ success: true, url: fullImageUrl });
 });
+
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
 

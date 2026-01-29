@@ -185,7 +185,7 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
 
         // 6. Handle AI Decision
         // Check if it is EXACTLY "VALID" (ignores spaces)
-        if (text.trim() === "VALID") { {
+        if (text.trim() === "VALID") {
             item.img = fullImageUrl; 
             item.status = "Pending"; 
             item.lat = req.body.lat; // Save GPS

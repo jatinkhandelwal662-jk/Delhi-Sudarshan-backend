@@ -167,27 +167,11 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
         
         // 4. The Verification Prompt
         const prompt = `
-            ACT AS: A strict AI City Inspector for the Delhi Municipal Corporation.
-            TASK: Verify if the uploaded image is a real-world photo of a civic issue.
-
-            🚨 CRITICAL REJECTION RULES (Check these first):
-            1. REJECT if the image is a photo of a SCREEN (Monitor, Laptop, Phone, TV). Even if the screen shows a pothole, it is INVALID.
-            2. REJECT if the image is blurry, too dark, or unintelligible.
-            3. REJECT if the image contains people/selfies as the main subject.
-            4. REJECT if the image is a drawing, screenshot, or digital art.
-
-            ✅ ACCEPTABLE CATEGORIES (Must be a direct photo of):
-            - Garbage / Trash Dumps
-            - Potholes / Broken Roads
-            - Water Leakage / Floods
-            - Broken Street Lights / Poles
-            - Overflowing Sewers
-            - Construction Debris / Unauthorised Construction
-
-            OUTPUT FORMAT:
-            - If the image violates ANY Rejection Rule: Respond exactly "INVALID"
-            - If the image clearly falls into an Acceptable Category: Respond exactly "VALID"
-            - Do not provide explanations. Output ONLY the one word.
+            Analyze this image for a government grievance portal.
+            Is this image related to civic issues like: Garbage, Potholes, Water leakage, Broken roads, Street lights, Sewer issues, or Construction debris?
+            
+            - If YES (it looks like a valid complaint): Respond with "VALID"
+            - If NO (it looks like a laptop, selfie, person face, computer screen, animal, or random object): Respond with "INVALID"
         `;
 
         const imagePart = fileToGenerativePart(filePath, req.file.mimetype);

@@ -144,10 +144,6 @@ app.post("/api/new-complaint", async (req, res) => {
     res.json({ success: true });
 });
 
-// Photo Upload API
-// ==========================================
-// 🛡️ API: PHOTO UPLOAD WITH AI VERIFICATION
-// ==========================================
 // ==========================================
 // 🛡️ API: MEDIA UPLOAD (PHOTO & VIDEO)
 // ==========================================
@@ -156,7 +152,6 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
     if (!req.file) return res.json({ success: false, error: "No file uploaded" });
 
     const filePath = req.file.path;
-    // Determine if it's video or image based on mimetype
     const isVideo = req.file.mimetype.startsWith('video');
     const fullMediaUrl = `${PUBLIC_URL}/uploads/${req.file.filename}`;
     
@@ -167,9 +162,8 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
     try {
         console.log(`🤖 AI Verifying ${isVideo ? 'Video' : 'Image'} for ${item.id}...`);
 
-        // 3. Setup AI Model
-        // Use Gemini 1.5 Flash for speed, it handles video well too
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        // 3. Setup AI Model (Using Gemini 1.5 Flash for speed & video)
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // 4. The Verification Prompt
         const prompt = `
@@ -177,11 +171,11 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
             TASK: Verify if this ${isVideo ? 'VIDEO' : 'IMAGE'} shows a real civic issue.
 
             🚨 REJECT IF:
-            - It is a recording of a screen (laptop/phone).
+            - It is a recording of a screen (laptop/phone/monitor).
             - It is a selfie or irrelevant vlog.
-            - It is too dark or blurry to see anything.
+            - It is too dark or blurry.
             
-            ✅ ACCEPT IF it clearly shows:
+            ✅ ACCEPT ONLY IF it clearly shows:
             - Garbage dumps, Potholes, Water leakage, Broken lights, Sewer overflow, Construction debris.
 
             OUTPUT:
@@ -199,10 +193,10 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
         console.log(`🤖 AI Verdict: ${text}`);
 
         // 6. Handle AI Decision
-        if (text.includes("VALID")) {
+        if (text === "VALID") { 
             // ✅ Accepted
-            item.img = fullMediaUrl; // System treats 'img' as the evidence URL (works for video too)
-            item.isVideo = isVideo;  // New flag to tell frontend this is a video
+            item.img = fullMediaUrl;
+            item.isVideo = isVideo;
             item.status = "Pending"; 
             item.lat = req.body.lat; 
             item.long = req.body.long; 

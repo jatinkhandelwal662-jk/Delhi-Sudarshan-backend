@@ -66,150 +66,185 @@
     </div>
 
     <script>
+       <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const preview = document.getElementById('preview');
         const captureBtn = document.getElementById('captureBtn');
         const retakeBtn = document.getElementById('retakeBtn');
         const submitBtn = document.getElementById('submitBtn');
+        const statusTxt = document.getElementById('status');
+        
         let currentBlob = null; 
-        let userLat = null; // Store Latitude
-        let userLong = null; // Store Longitude
+        let userLat = null, userLong = null;
+        let mediaRecorder;
+        let chunks = [];
+        let isRecording = false;
+        let pressTimer;
 
-        // 1. Get Complaint ID from URL (Fallback to Demo ID if testing directly)
+        // 1. Get ID
         const params = new URLSearchParams(window.location.search);
-        const id = params.get("id") || "SIG-7421"; 
+        const id = params.get("id") || "Unknown";
         document.getElementById("cid").innerText = id;
 
-        // 2. START CAMERA & GPS
+        // 2. Start Camera
         async function startCamera() {
             try {
-                // Camera Access
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "environment" }, 
-                    audio: false 
+                    audio: true // Audio needed for video
                 });
                 video.srcObject = stream;
 
-                // GPS Access
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            userLat = position.coords.latitude.toFixed(6);
-                            userLong = position.coords.longitude.toFixed(6);
-                            document.getElementById('status').innerHTML = `<span style="color:#4ade80"><i class="ri-gps-fill"></i> GPS Locked: ${userLat}, ${userLong}</span>`;
-                        },
-                        (error) => {
-                            document.getElementById('status').innerHTML = `<span style="color:#facc15"><i class="ri-alert-fill"></i> GPS Denied. Using Default.</span>`;
-                        }
-                    );
-                }
-            } catch (err) {
-                document.getElementById('status').innerText = "❌ Camera Error: " + err.message;
-            }
+                // Setup Recorder
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    currentBlob = blob;
+                    chunks = [];
+                    
+                    // Show Preview (Create a temporary video URL)
+                    preview.src = URL.createObjectURL(blob);
+                    // We reuse the 'img' tag, but for video we might need to swap element types dynamically
+                    // For simplicity, we just use the preview logic differently:
+                    video.style.display = 'none';
+                    
+                    // Create a video preview element if not exists
+                    let vidPrev = document.getElementById('videoPreview');
+                    if(!vidPrev) {
+                        vidPrev = document.createElement('video');
+                        vidPrev.id = 'videoPreview';
+                        vidPrev.style.width = '100%';
+                        vidPrev.style.height = '100%';
+                        vidPrev.style.objectFit = 'cover';
+                        vidPrev.controls = true;
+                        document.querySelector('.camera-box').appendChild(vidPrev);
+                    }
+                    vidPrev.src = URL.createObjectURL(blob);
+                    vidPrev.style.display = 'block';
+                    
+                    captureBtn.style.display = 'none';
+                    retakeBtn.style.display = 'block';
+                    submitBtn.style.display = 'block';
+                    statusTxt.innerHTML = "📹 Video Recorded";
+                };
+
+                // GPS
+                navigator.geolocation.getCurrentPosition(
+                    (p) => {
+                        userLat = p.coords.latitude.toFixed(6);
+                        userLong = p.coords.longitude.toFixed(6);
+                        statusTxt.innerHTML = `<span style="color:#4ade80">📍 GPS Locked</span>`;
+                    },
+                    () => statusTxt.innerHTML = `<span style="color:#facc15">⚠️ GPS Denied</span>`
+                );
+            } catch (err) { statusTxt.innerText = "❌ Camera Error"; }
         }
         startCamera();
 
-        // 3. CAPTURE PHOTO
-        captureBtn.addEventListener('click', () => {
+        // 3. HOLD TO RECORD LOGIC
+        
+        // Mouse Down / Touch Start -> Start Recording
+        const startRecord = (e) => {
+            e.preventDefault();
+            isRecording = false;
+            
+            // Wait 500ms to distinguish click vs hold
+            pressTimer = setTimeout(() => {
+                isRecording = true;
+                mediaRecorder.start();
+                captureBtn.style.transform = "scale(1.2)";
+                captureBtn.style.borderColor = "red";
+                statusTxt.innerText = "🔴 Recording... Release to Stop";
+            }, 500);
+        };
+
+        // Mouse Up / Touch End -> Stop Recording OR Take Photo
+        const stopRecord = (e) => {
+            e.preventDefault();
+            clearTimeout(pressTimer);
+            captureBtn.style.transform = "scale(1)";
+            captureBtn.style.borderColor = "rgba(255,255,255,0.8)";
+
+            if (isRecording) {
+                // Was holding -> Stop Video
+                mediaRecorder.stop();
+                isRecording = false;
+            } else {
+                // Was a quick click -> Take Photo
+                takePhoto();
+            }
+        };
+
+        captureBtn.addEventListener('mousedown', startRecord);
+        captureBtn.addEventListener('touchstart', startRecord);
+        captureBtn.addEventListener('mouseup', stopRecord);
+        captureBtn.addEventListener('touchend', stopRecord);
+
+        function takePhoto() {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            canvas.toBlob((blob) => {
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            canvas.toBlob(blob => {
                 currentBlob = blob;
                 preview.src = URL.createObjectURL(blob);
-                
-                // Toggle UI
                 video.style.display = 'none';
                 preview.style.display = 'block';
                 captureBtn.style.display = 'none';
                 retakeBtn.style.display = 'block';
                 submitBtn.style.display = 'block';
+                statusTxt.innerText = "📸 Photo Captured";
             }, 'image/jpeg', 0.95);
-        });
+        }
 
-        // 4. RETAKE PHOTO
+        // 4. Retake
         retakeBtn.addEventListener('click', () => {
             currentBlob = null;
             preview.style.display = 'none';
+            const vidPrev = document.getElementById('videoPreview');
+            if(vidPrev) vidPrev.style.display = 'none';
+            
             video.style.display = 'block';
             captureBtn.style.display = 'block';
             retakeBtn.style.display = 'none';
             submitBtn.style.display = 'none';
+            statusTxt.innerHTML = `<span style="color:#4ade80">📍 Ready</span>`;
         });
 
-        // 5. SUBMIT TO RENDER BACKEND
+        // 5. Submit
         submitBtn.addEventListener('click', async () => {
-            if (!currentBlob || !id) return;
+            if (!currentBlob) return;
+            
+            // Determine filename based on type
+            const fileExt = currentBlob.type.includes('video') ? 'webm' : 'jpg';
+            const fileName = `evidence.${fileExt}`;
 
             const formData = new FormData();
-            formData.append("photo", currentBlob, "capture.jpg"); 
+            formData.append("photo", currentBlob, fileName); // Field name is still 'photo' for backend compatibility
             formData.append("id", id);
-            
-            // Send GPS Coordinates
             formData.append("lat", userLat || "28.6139"); 
             formData.append("long", userLong || "77.2090");
 
-            document.getElementById("status").innerHTML = `<span style="color:#38bdf8"><i class="ri-loader-2-line ri-spin"></i> AI Scanning Evidence...</span>`;
+            statusTxt.innerHTML = `<span style="color:#38bdf8">⏳ AI Verifying Evidence...</span>`;
             submitBtn.disabled = true;
-            submitBtn.style.opacity = "0.7";
 
             try {
-                // 👇 UPDATED: Points to your Live Render Backend
-                const res = await fetch("https://delhi-sudarshan-backend.onrender.com/api/upload-photo", { 
-                    method: "POST", 
-                    body: formData 
-                });
-                
+                const res = await fetch("/api/upload-photo", { method: "POST", body: formData });
                 const result = await res.json();
 
-                // --- 🤖 AI VERDICT LOGIC ---
                 if (result.spam) {
-                    // 🔴 CASE 1: SPAM DETECTED (Laptop/Selfie/Random)
-                    document.body.innerHTML = `
-                        <div class="container" style="padding:40px; border: 2px solid #ef4444;">
-                            <h1 style="font-size:4rem; margin-bottom:10px;">🚫</h1>
-                            <h2 style="color:#ef4444">Upload Rejected</h2>
-                            <p style="font-size:1.1rem; color: #fff;">
-                                🤖 AI System: <b>Invalid Image Detected</b>
-                            </p>
-                            <p style="color:#94a3b8; font-size:0.9rem; margin-top:10px;">
-                                Please upload a real photo of the issue (Garbage, Pothole, etc).<br>
-                                Selfies or screens are not accepted.
-                            </p>
-                            <button onclick="location.reload()" style="margin-top:20px; padding:12px 24px; background:#334155; color:white; border:none; border-radius:50px; cursor:pointer; font-weight:bold;">
-                                <i class="ri-refresh-line"></i> Try Again
-                            </button>
-                        </div>
-                    `;
-                } 
-                else if (result.success) {
-                    // CASE 2: SUCCESS (Valid Complaint)
-                    document.body.innerHTML = `
-                        <div class="container" style="padding:40px; border: 2px solid #22c55e;">
-                            <h1 style="font-size:4rem; margin-bottom:10px;">✅</h1>
-                            <h2 style="color:#4ade80">Evidence Verified!</h2>
-                            <p style="color:#cbd5e1;">AI Scan: <b style="color:#4ade80">Valid Complaint</b></p>
-                            <div style="background:#0f172a; padding:10px; border-radius:10px; margin-top:20px; border:1px solid #334155;">
-                                <p style="font-family:monospace; margin:0; color:#38bdf8;">
-                                    📍 GeoTag: ${userLat || 'N/A'}, ${userLong || 'N/A'}
-                                </p>
-                            </div>
-                            <p style="color:#94a3b8; font-size:0.8rem; margin-top:15px;">You can close this window now.</p>
-                        </div>
-                    `;
-                } else {
-                    document.getElementById("status").innerText = "Upload Failed";
-                    submitBtn.disabled = false;
+                    document.body.innerHTML = `<div class="container" style="border:2px solid red; padding:40px;"><h1>🚫</h1><h2>Rejected</h2><p>AI detected invalid evidence.</p><button onclick="location.reload()">Try Again</button></div>`;
+                } else if (result.success) {
+                    document.body.innerHTML = `<div class="container" style="border:2px solid green; padding:40px;"><h1>✅</h1><h2>Verified!</h2><p>Evidence uploaded securely.</p></div>`;
                 }
             } catch (err) {
                 console.error(err);
-                document.getElementById("status").innerText = "Server Error. Check connection.";
+                statusTxt.innerText = "❌ Upload Failed";
                 submitBtn.disabled = false;
             }
         });
+    </script>
     </script>
 </body>
 </html>

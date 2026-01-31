@@ -145,8 +145,8 @@ app.post("/api/new-complaint", async (req, res) => {
 });
 
 // Photo Upload API
-// ==========================================
-// 🛡️ API: PHOTO UPLOAD WITH AI VERIFICATION
+// =======================================
+// 🛡️ API: PHOTO UPLOAD (STRICT AI CHECK)
 // ==========================================
 app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
     // 1. Basic Validation
@@ -163,15 +163,24 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
         console.log(`🤖 AI Verifying Image for ${item.id}...`);
 
         // 3. Setup AI Model
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        
-        // 4. The Verification Prompt
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // 4. The STRICT Verification Prompt
         const prompt = `
-            Analyze this image for a government grievance portal.
-            Is this image related to civic issues like: Garbage, Potholes, Water leakage, Broken roads, Street lights, Sewer issues, or Construction debris?
+            ACT AS: A strict Government City Inspector.
+            TASK: Verify if this image is a valid civic complaint.
+
+            🚨 CRITICAL REJECTION RULES (Check these first):
+            1. REJECT if the image is a SCREEN (Laptop, Phone, Monitor, TV). 
+            2. REJECT if the image is a Selfie or a Person posing.
+            3. REJECT if the image is too blurry or dark.
             
-            - If YES (it looks like a valid complaint): Respond with "VALID"
-            - If NO (it looks like a laptop, selfie, person face, computer screen, animal, or random object): Respond with "INVALID"
+            ✅ ACCEPT ONLY IF it clearly shows:
+            - Garbage Piles, Potholes, Water Leakage, Broken Roads, Street Light Issues, Construction Debris.
+
+            OUTPUT FORMAT:
+            - If valid: Respond exactly "VALID"
+            - If invalid (Screen/Selfie/Random): Respond exactly "INVALID"
         `;
 
         const imagePart = fileToGenerativePart(filePath, req.file.mimetype);
@@ -179,35 +188,33 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
         // 5. Generate Result
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
-        const text = response.text().trim();
+        const text = response.text().trim(); // Remove extra spaces
 
-        console.log(`🤖 AI Verdict: ${text}`);
+        console.log(`🤖 AI Verdict: [${text}]`);
 
         // 6. Handle AI Decision
-        // Check if it is EXACTLY "VALID" (ignores spaces)
-        if (text.trim() === "VALID") {
+        if (text === "VALID") { 
+            // Accepted
             item.img = fullImageUrl; 
             item.status = "Pending"; 
-            item.lat = req.body.lat; // Save GPS
-            item.long = req.body.long; // Save GPS
+            item.lat = req.body.lat; 
+            item.long = req.body.long; 
             
             res.json({ success: true, url: fullImageUrl, spam: false });
         } else {
+            // Rejected
             console.log("Blocked by AI: Invalid Image");
-            // Do NOT update the complaint status or image
-            // We return 'spam: true' so frontend can show Red Alert
             res.json({ success: false, spam: true });
         }
 
     } catch (error) {
         console.error("AI Error:", error);
-        // Fallback: If AI fails (server error), allow the upload to be safe
+        // Fallback: If AI crashes, allow upload but warn
         item.img = fullImageUrl;
         item.status = "Pending";
         res.json({ success: true, url: fullImageUrl, warning: "AI Check Skipped" });
     }
 });
-
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
 

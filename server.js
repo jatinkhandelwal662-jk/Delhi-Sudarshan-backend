@@ -144,79 +144,70 @@ app.post("/api/new-complaint", async (req, res) => {
     res.json({ success: true });
 });
 
+// Photo Upload API
 // ==========================================
-// 🛡️ API: MEDIA UPLOAD (PHOTO & VIDEO)
+// 🛡️ API: PHOTO UPLOAD WITH AI VERIFICATION
 // ==========================================
 app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
     // 1. Basic Validation
     if (!req.file) return res.json({ success: false, error: "No file uploaded" });
 
     const filePath = req.file.path;
-    const isVideo = req.file.mimetype.startsWith('video');
-    const fullMediaUrl = `${PUBLIC_URL}/uploads/${req.file.filename}`;
+    const fullImageUrl = `${PUBLIC_URL}/uploads/${req.file.filename}`;
     
     // 2. Find the complaint
     const item = complaints.find(c => c.id === req.body.id);
     if(!item) return res.json({ success: false, error: "Complaint ID not found" });
 
     try {
-        console.log(`🤖 AI Verifying ${isVideo ? 'Video' : 'Image'} for ${item.id}...`);
+        console.log(`🤖 AI Verifying Image for ${item.id}...`);
 
-        // 3. Setup AI Model (Using Gemini 1.5 Flash for speed & video)
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+        // 3. Setup AI Model
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        
         // 4. The Verification Prompt
         const prompt = `
-            ACT AS: A strict AI City Inspector.
-            TASK: Verify if this ${isVideo ? 'VIDEO' : 'IMAGE'} shows a real civic issue.
-
-            🚨 REJECT IF:
-            - It is a recording of a screen (laptop/phone/monitor).
-            - It is a selfie or irrelevant vlog.
-            - It is too dark or blurry.
+            Analyze this image for a government grievance portal.
+            Is this image related to civic issues like: Garbage, Potholes, Water leakage, Broken roads, Street lights, Sewer issues, or Construction debris?
             
-            ✅ ACCEPT ONLY IF it clearly shows:
-            - Garbage dumps, Potholes, Water leakage, Broken lights, Sewer overflow, Construction debris.
-
-            OUTPUT:
-            - If valid: Respond "VALID"
-            - If invalid: Respond "INVALID"
+            - If YES (it looks like a valid complaint): Respond with "VALID"
+            - If NO (it looks like a laptop, selfie, person face, computer screen, animal, or random object): Respond with "INVALID"
         `;
 
-        const mediaPart = fileToGenerativePart(filePath, req.file.mimetype);
+        const imagePart = fileToGenerativePart(filePath, req.file.mimetype);
 
         // 5. Generate Result
-        const result = await model.generateContent([prompt, mediaPart]);
+        const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
         const text = response.text().trim();
 
         console.log(`🤖 AI Verdict: ${text}`);
 
         // 6. Handle AI Decision
-        if (text === "VALID") { 
-            // ✅ Accepted
-            item.img = fullMediaUrl;
-            item.isVideo = isVideo;
+        // Check if it is EXACTLY "VALID" (ignores spaces)
+        if (text.trim() === "VALID") {
+            item.img = fullImageUrl; 
             item.status = "Pending"; 
-            item.lat = req.body.lat; 
-            item.long = req.body.long; 
+            item.lat = req.body.lat; // Save GPS
+            item.long = req.body.long; // Save GPS
             
-            res.json({ success: true, url: fullMediaUrl, spam: false });
+            res.json({ success: true, url: fullImageUrl, spam: false });
         } else {
-            // 🚫 Rejected
-            console.log("❌ Blocked by AI: Invalid Evidence");
+            console.log("Blocked by AI: Invalid Image");
+            // Do NOT update the complaint status or image
+            // We return 'spam: true' so frontend can show Red Alert
             res.json({ success: false, spam: true });
         }
 
     } catch (error) {
         console.error("AI Error:", error);
-        // Fallback
-        item.img = fullMediaUrl;
-        item.isVideo = isVideo;
+        // Fallback: If AI fails (server error), allow the upload to be safe
+        item.img = fullImageUrl;
         item.status = "Pending";
-        res.json({ success: true, url: fullMediaUrl, warning: "AI Check Skipped" });
+        res.json({ success: true, url: fullImageUrl, warning: "AI Check Skipped" });
     }
 });
+
 
 app.get("/api/new-complaint", (req, res) => res.json(complaints));
 

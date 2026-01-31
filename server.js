@@ -163,7 +163,7 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
         console.log(`🤖 AI Verifying Image for ${item.id}...`);
 
         // 3. Setup AI Model
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // 4. The STRICT Verification Prompt
         const prompt = `

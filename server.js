@@ -167,20 +167,11 @@ app.post("/api/upload-photo", upload.single("photo"), async (req, res) => {
 
         // 4. The STRICT Verification Prompt
         const prompt = `
-            ACT AS: A strict Government City Inspector.
-            TASK: Verify if this image is a valid civic complaint.
-
-            🚨 CRITICAL REJECTION RULES (Check these first):
-            1. REJECT if the image is a SCREEN (Laptop, Phone, Monitor, TV). 
-            2. REJECT if the image is a Selfie or a Person posing.
-            3. REJECT if the image is too blurry or dark.
+            Analyze this image for a government grievance portal.
+            Is this image related to civic issues like: Garbage, Potholes, Water leakage, Broken roads, Street lights, Sewer issues, or Construction debris?
             
-            ✅ ACCEPT ONLY IF it clearly shows:
-            - Garbage Piles, Potholes, Water Leakage, Broken Roads, Street Light Issues, Construction Debris.
-
-            OUTPUT FORMAT:
-            - If valid: Respond exactly "VALID"
-            - If invalid (Screen/Selfie/Random): Respond exactly "INVALID"
+            - If YES (it looks like a valid complaint): Respond with "VALID"
+            - If NO (it looks like a laptop, selfie, person face, computer screen, animal, or random object): Respond with "INVALID"
         `;
 
         const imagePart = fileToGenerativePart(filePath, req.file.mimetype);

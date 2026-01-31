@@ -15,60 +15,72 @@
         /* CAMERA VIEWPORT */
         .camera-box {
             width: 100%; height: 350px; background: black; border-radius: 15px; overflow: hidden; position: relative;
-            border: 2px solid #334155; margin-bottom: 20px;
-        }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .captured-img { width: 100%; height: 100%; object-fit: cover; display: none; }
-
-        /* BUTTONS */
-        .btn-group { display: flex; gap: 15px; justify-content: center; align-items: center; }
-        button {
-            padding: 12px 24px; border-radius: 50px; border: none; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.2s;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         }
         
-        /* Capture Button (Red Circle) */
-        .btn-capture { 
-            background: #ef4444; color: white; width: 70px; height: 70px; 
-            border-radius: 50%; padding: 0; border: 4px solid rgba(255,255,255,0.8); 
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+        /* THE FIX: Added autoplay, playsinline, and MUTED */
+        #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); } 
+        #preview { width: 100%; height: 100%; object-fit: contain; display: none; }
+        #videoPreview { width: 100%; height: 100%; object-fit: cover; display: none; }
+
+        /* CONTROLS */
+        .controls { margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 20px; }
+
+        .btn-capture {
+            width: 70px; height: 70px; background: transparent; border: 4px solid rgba(255,255,255,0.8);
+            border-radius: 50%; cursor: pointer; transition: 0.2s; position: relative;
+        }
+        .btn-capture::after {
+            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 50px; height: 50px; background: white; border-radius: 50%; transition: 0.2s;
         }
         .btn-capture:active { transform: scale(0.9); }
+        .btn-capture:active::after { background: #ef4444; transform: translate(-50%, -50%) scale(0.8); }
 
-        .btn-retake { background: #475569; color: white; display: none; }
-        .btn-submit { background: #22c55e; color: white; display: none; flex: 1; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3); }
-
-        /* HIDDEN CANVAS FOR PROCESSING */
-        canvas { display: none; }
+        .btn-action {
+            padding: 12px 25px; border-radius: 50px; border: none; font-weight: 600; cursor: pointer;
+            display: none; font-size: 1rem; transition: 0.2s;
+        }
+        .btn-retake { background: #475569; color: white; }
+        .btn-submit { background: #38bdf8; color: #0f172a; }
+        
+        .status-txt { margin-top: 15px; font-size: 0.85rem; font-weight: 500; min-height: 20px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>📸 Live Evidence Cam</h2>
-        <p>Verifying for <b id="cid" style="color:#fff;">...</b></p>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="text-align:left;">
+                <h2 style="font-size:1.2rem; margin:0;">Upload Evidence</h2>
+                <p style="margin:0; font-size:0.75rem;">ID: <span id="cid" style="color:#cbd5e1">...</span></p>
+            </div>
+            <div style="background:rgba(255,255,255,0.1); padding:5px 10px; border-radius:8px; font-size:0.7rem;">
+                SECURE UPLOAD
+            </div>
+        </div>
 
         <div class="camera-box">
-            <video id="video" autoplay playsinline></video>
-            <img id="preview" class="captured-img">
-        </div>
+            <video id="video" autoplay playsinline muted></video>
+            <img id="preview" alt="Captured Photo">
+            </div>
 
-        <canvas id="canvas"></canvas>
+        <div class="status-txt" id="status">📍 Requesting GPS...</div>
 
-        <div class="btn-group">
-            <button id="captureBtn" class="btn-capture" title="Take Photo"></button>
-            <button id="retakeBtn" class="btn-retake"><i class="ri-refresh-line"></i> Retake</button>
-            <button id="submitBtn" class="btn-submit"><i class="ri-upload-cloud-2-line"></i> Upload Evidence</button>
+        <div class="controls">
+            <button class="btn-action btn-retake" id="retakeBtn"><i class="ri-refresh-line"></i> Retake</button>
+            <button class="btn-capture" id="captureBtn"></button>
+            <button class="btn-action btn-submit" id="submitBtn"><i class="ri-upload-cloud-2-line"></i> Upload</button>
         </div>
         
-        <p id="status" style="margin-top:20px; font-weight:bold; font-size: 0.85rem; color: #64748b;">
-            <i class="ri-loader-4-line"></i> Initializing Camera & GPS...
+        <p style="margin-top:20px; font-size:0.75rem; color:#64748b;">
+            Tap to Snap • <strong>Hold to Record Video</strong>
         </p>
     </div>
 
     <script>
-       <script>
         const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
+        const canvas = document.createElement('canvas'); // Hidden canvas
         const preview = document.getElementById('preview');
         const captureBtn = document.getElementById('captureBtn');
         const retakeBtn = document.getElementById('retakeBtn');
@@ -87,80 +99,97 @@
         const id = params.get("id") || "Unknown";
         document.getElementById("cid").innerText = id;
 
-        // 2. Start Camera
+        // 2. Start Camera (ROBUST VERSION)
         async function startCamera() {
             try {
+                // Try getting Video AND Audio
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "environment" }, 
-                    audio: true // Audio needed for video
+                    audio: true 
                 });
-                video.srcObject = stream;
-
-                // Setup Recorder
-                mediaRecorder = new MediaRecorder(stream);
-                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'video/webm' });
-                    currentBlob = blob;
-                    chunks = [];
-                    
-                    // Show Preview (Create a temporary video URL)
-                    preview.src = URL.createObjectURL(blob);
-                    // We reuse the 'img' tag, but for video we might need to swap element types dynamically
-                    // For simplicity, we just use the preview logic differently:
-                    video.style.display = 'none';
-                    
-                    // Create a video preview element if not exists
-                    let vidPrev = document.getElementById('videoPreview');
-                    if(!vidPrev) {
-                        vidPrev = document.createElement('video');
-                        vidPrev.id = 'videoPreview';
-                        vidPrev.style.width = '100%';
-                        vidPrev.style.height = '100%';
-                        vidPrev.style.objectFit = 'cover';
-                        vidPrev.controls = true;
-                        document.querySelector('.camera-box').appendChild(vidPrev);
-                    }
-                    vidPrev.src = URL.createObjectURL(blob);
-                    vidPrev.style.display = 'block';
-                    
-                    captureBtn.style.display = 'none';
-                    retakeBtn.style.display = 'block';
-                    submitBtn.style.display = 'block';
-                    statusTxt.innerHTML = "📹 Video Recorded";
-                };
-
-                // GPS
-                navigator.geolocation.getCurrentPosition(
-                    (p) => {
-                        userLat = p.coords.latitude.toFixed(6);
-                        userLong = p.coords.longitude.toFixed(6);
-                        statusTxt.innerHTML = `<span style="color:#4ade80">📍 GPS Locked</span>`;
-                    },
-                    () => statusTxt.innerHTML = `<span style="color:#facc15">⚠️ GPS Denied</span>`
-                );
-            } catch (err) { statusTxt.innerText = "❌ Camera Error"; }
+                handleStream(stream);
+            } catch (err) {
+                console.warn("Audio failed, trying Video only...", err);
+                try {
+                    // Fallback: If audio fails (permissions), get Video only
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: "environment" },
+                        audio: false 
+                    });
+                    handleStream(stream);
+                    statusTxt.innerText = "⚠️ No Audio (Video Only)";
+                } catch (fatalErr) {
+                    statusTxt.innerText = "❌ Camera Access Denied. Check Permissions.";
+                    console.error(fatalErr);
+                }
+            }
         }
+
+        function handleStream(stream) {
+            video.srcObject = stream;
+            
+            // Setup Recorder
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (e) => {
+                if(e.data.size > 0) chunks.push(e.data);
+            };
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                currentBlob = blob;
+                chunks = [];
+                
+                // Show Video Preview
+                video.style.display = 'none';
+                
+                let vidPrev = document.getElementById('videoPreview');
+                if(!vidPrev) {
+                    vidPrev = document.createElement('video');
+                    vidPrev.id = 'videoPreview';
+                    vidPrev.controls = true;
+                    // Important: The preview SHOULD have sound
+                    document.querySelector('.camera-box').appendChild(vidPrev);
+                }
+                vidPrev.src = URL.createObjectURL(blob);
+                vidPrev.style.display = 'block';
+                
+                captureBtn.style.display = 'none';
+                retakeBtn.style.display = 'block';
+                submitBtn.style.display = 'block';
+                statusTxt.innerHTML = "📹 Video Recorded";
+            };
+        }
+
+        // 3. GPS Logic
+        navigator.geolocation.getCurrentPosition(
+            (p) => {
+                userLat = p.coords.latitude.toFixed(6);
+                userLong = p.coords.longitude.toFixed(6);
+                statusTxt.innerHTML = `<span style="color:#4ade80">📍 GPS Locked</span>`;
+            },
+            () => statusTxt.innerHTML = `<span style="color:#facc15">⚠️ GPS Denied (Using Default)</span>`
+        );
+
+        // Start
         startCamera();
 
-        // 3. HOLD TO RECORD LOGIC
-        
-        // Mouse Down / Touch Start -> Start Recording
+        // 4. HOLD TO RECORD LOGIC
         const startRecord = (e) => {
             e.preventDefault();
             isRecording = false;
             
             // Wait 500ms to distinguish click vs hold
             pressTimer = setTimeout(() => {
-                isRecording = true;
-                mediaRecorder.start();
-                captureBtn.style.transform = "scale(1.2)";
-                captureBtn.style.borderColor = "red";
-                statusTxt.innerText = "🔴 Recording... Release to Stop";
+                if (mediaRecorder && mediaRecorder.state === "inactive") {
+                    isRecording = true;
+                    mediaRecorder.start();
+                    captureBtn.style.transform = "scale(1.2)";
+                    captureBtn.style.borderColor = "red";
+                    captureBtn.style.setProperty("::after", "background: red");
+                    statusTxt.innerText = "🔴 Recording... Release to Stop";
+                }
             }, 500);
         };
 
-        // Mouse Up / Touch End -> Stop Recording OR Take Photo
         const stopRecord = (e) => {
             e.preventDefault();
             clearTimeout(pressTimer);
@@ -186,11 +215,18 @@
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
+            
             canvas.toBlob(blob => {
                 currentBlob = blob;
                 preview.src = URL.createObjectURL(blob);
+                
                 video.style.display = 'none';
                 preview.style.display = 'block';
+                
+                // Hide video preview if it exists
+                const vidPrev = document.getElementById('videoPreview');
+                if(vidPrev) vidPrev.style.display = 'none';
+
                 captureBtn.style.display = 'none';
                 retakeBtn.style.display = 'block';
                 submitBtn.style.display = 'block';
@@ -198,7 +234,7 @@
             }, 'image/jpeg', 0.95);
         }
 
-        // 4. Retake
+        // 5. Retake
         retakeBtn.addEventListener('click', () => {
             currentBlob = null;
             preview.style.display = 'none';
@@ -212,39 +248,50 @@
             statusTxt.innerHTML = `<span style="color:#4ade80">📍 Ready</span>`;
         });
 
-        // 5. Submit
+        // 6. Submit
         submitBtn.addEventListener('click', async () => {
             if (!currentBlob) return;
             
-            // Determine filename based on type
             const fileExt = currentBlob.type.includes('video') ? 'webm' : 'jpg';
             const fileName = `evidence.${fileExt}`;
 
             const formData = new FormData();
-            formData.append("photo", currentBlob, fileName); // Field name is still 'photo' for backend compatibility
+            formData.append("photo", currentBlob, fileName);
             formData.append("id", id);
             formData.append("lat", userLat || "28.6139"); 
             formData.append("long", userLong || "77.2090");
 
-            statusTxt.innerHTML = `<span style="color:#38bdf8">⏳ AI Verifying Evidence...</span>`;
+            statusTxt.innerHTML = `<span style="color:#38bdf8">⏳ AI Verifying...</span>`;
             submitBtn.disabled = true;
+            submitBtn.style.opacity = "0.7";
 
             try {
                 const res = await fetch("/api/upload-photo", { method: "POST", body: formData });
                 const result = await res.json();
 
                 if (result.spam) {
-                    document.body.innerHTML = `<div class="container" style="border:2px solid red; padding:40px;"><h1>🚫</h1><h2>Rejected</h2><p>AI detected invalid evidence.</p><button onclick="location.reload()">Try Again</button></div>`;
+                    document.body.innerHTML = `
+                        <div class="container" style="border:2px solid red; padding:40px;">
+                            <h1 style="font-size:3rem">🚫</h1>
+                            <h2>Rejected</h2>
+                            <p>AI detected invalid evidence.</p>
+                            <button onclick="location.reload()" style="padding:10px 20px; background:#ef4444; border:none; color:white; border-radius:8px;">Try Again</button>
+                        </div>`;
                 } else if (result.success) {
-                    document.body.innerHTML = `<div class="container" style="border:2px solid green; padding:40px;"><h1>✅</h1><h2>Verified!</h2><p>Evidence uploaded securely.</p></div>`;
+                    document.body.innerHTML = `
+                        <div class="container" style="border:2px solid green; padding:40px;">
+                            <h1 style="font-size:3rem">✅</h1>
+                            <h2>Verified!</h2>
+                            <p>Evidence Uploaded Successfully.</p>
+                            <p style="font-family:monospace; color:#4ade80">GPS: ${userLat}, ${userLong}</p>
+                        </div>`;
                 }
             } catch (err) {
                 console.error(err);
-                statusTxt.innerText = "❌ Upload Failed";
+                statusTxt.innerText = "❌ Server Error";
                 submitBtn.disabled = false;
             }
         });
-    </script>
     </script>
 </body>
 </html>

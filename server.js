@@ -10,7 +10,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const app = express();
 
 // CONFIGURATION
-const PUBLIC_URL = "https://lean-hacks-backend.onrender.com"; 
+const PUBLIC_URL = "https://delhi-sudarshan-backend.onrender.com"; 
 
 // --- TWILIO CREDENTIALS---
 const ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;

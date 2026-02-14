@@ -31,8 +31,8 @@ Government data resides in legacy mainframes (MCD/PWD SQL Servers). Migrating pe
 
 ## ⚡ Key Capabilities
 
-### 1. 🕵️‍♂️ The Audit Engine
-* **Logic:** Triggers the "Surprise Audit" loop. When an officer initiates a check, this engine randomly selects citizens from a specific cluster.
+### 1. 🕵️‍♂️ The Citizen Assurance Call Engine
+* **Logic:** Triggers the "Citizen Assurance call" loop. When an officer initiates a check, this engine randomly selects citizens from a specific cluster.
 * **Telephony:** Uses **Twilio Programmable Voice** to place outbound calls to the `citizen.html` simulation client.
 * **Verification:** Captures the citizen's response (DTMF/Voice) to verify if work was actually done.
 

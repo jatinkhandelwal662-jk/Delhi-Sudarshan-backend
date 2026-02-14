@@ -85,11 +85,8 @@ This repository hosts two critical simulation interfaces:
 
 ---
 
-## 🛠️ Installation & Setup
-
 ### Prerequisites
 * Node.js v18+
 * Twilio Account (SID & Auth Token)
 * Render Account (for deployment)
-cd delhi-sudarshan-backend
-npm install
+
